@@ -1,0 +1,250 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Out of Context — um jogo de cenas, falas e memória.">
+  <title>Out of Context</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'jogo/style.css' %}">
+</head>
+
+<body>
+  <div class="app" id="app">
+    <header class="site-header">
+      <button class="brand" id="brand-button" type="button" aria-label="Voltar ao início">
+        OUT OF CONTEXT
+      </button>
+      <button class="header-action" id="header-action" type="button">COMO JOGAR</button>
+    </header>
+
+    <main>
+      <!-- HOME -->
+      <section class="screen screen-home is-active" id="home-screen" aria-labelledby="home-title">
+        <div class="home-content">
+          <p class="eyebrow">UM JOGO DE CENAS</p>
+          <h1 id="home-title">Você conhece a cena.<br><span>Mas conhece o contexto?</span></h1>
+          <p class="home-copy">Complete falas. Reconheça obras. Teste até onde vai a sua memória.</p>
+          <button class="primary-button primary-button--large" id="play-button" type="button">
+            <span>JOGAR</span>
+            <span aria-hidden="true"></span>
+          </button>
+          <p class="load-error" id="load-error" hidden>
+            Não foi possível carregar as cenas do jogo. Recarregue a página para tentar novamente.
+          </p>
+        </div>
+      </section>
+
+      <!-- GAME -->
+      <section class="screen screen-game" id="game-screen" hidden aria-labelledby="game-title">
+        <div class="game-topline">
+          <button class="back-button" id="back-button" type="button">
+            <span aria-hidden="true">←</span>
+            VOLTAR
+          </button>
+          <p class="game-mode-label" id="game-mode-label"></p>
+        </div>
+
+        <div class="game-content" id="game-content">
+          <div class="game-heading">
+            <p class="eyebrow" id="game-eyebrow"></p>
+            <h1 id="game-title"></h1>
+            <p class="game-copy" id="game-copy"></p>
+          </div>
+
+          <article class="scene-prompt" aria-label="Cena">
+            <p class="scene-label">CENA</p>
+            <p class="scene-text" id="dialogo"></p>
+          </article>
+
+          <!-- COMPLETE A CENA -->
+          <form class="answer-area" id="complete-form" novalidate>
+            <label for="answer-input" id="answer-label">CONTINUE A FALA</label>
+            <div class="answer-row">
+              <input
+                id="answer-input"
+                name="answer"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Digite a continuação..."
+                aria-describedby="answer-feedback"
+              >
+              <button class="submit-button" type="submit">
+                ENVIAR <span aria-hidden="true"></span>
+              </button>
+            </div>
+            <p class="answer-feedback" id="answer-feedback" aria-live="polite"></p>
+          </form>
+
+          <!-- FORA DE CONTEXTO -->
+          <form class="answer-area" id="context-form" novalidate hidden>
+            <label for="context-input">QUAL É A OBRA?</label>
+            <div class="autocomplete-wrap">
+              <div class="answer-row">
+                <input
+                  id="context-input"
+                  name="context"
+                  type="text"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Digite o título..."
+                  aria-describedby="context-feedback"
+                >
+                <button class="submit-button" type="submit">
+                  ENVIAR <span aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="suggestions" id="suggestions" role="listbox" aria-label="Sugestões de obras"></div>
+            </div>
+            <p class="answer-feedback" id="context-feedback" aria-live="polite"></p>
+          </form>
+
+          <div class="game-tools">
+            <div class="attempts" aria-label="Tentativas restantes">
+              <span class="tools-label">TENTATIVAS</span>
+              <span class="attempt-dots" id="attempt-dots"></span>
+            </div>
+            <button
+              class="hint-button"
+              id="hint-button"
+              type="button"
+            >
+              <span class="hint-icon" aria-hidden="true">+</span>
+              <span>PEDIR DICA</span>
+            </button>
+          </div>
+
+          <div class="hints" id="hints" aria-live="polite"></div>
+
+          <div class="round-feedback" id="round-feedback" hidden>
+            <div class="feedback-status">
+              <span class="feedback-mark" id="feedback-mark" aria-hidden="true"></span>
+              <p class="eyebrow" id="feedback-eyebrow"></p>
+            </div>
+            <h2 id="feedback-title"></h2>
+            <p class="feedback-message" id="feedback-message"></p>
+            <div class="reveal-grid">
+              <div>
+                <span>RESPOSTA</span>
+                <strong id="feedback-answer"></strong>
+              </div>
+              <div>
+                <span>OBRA</span>
+                <strong id="feedback-work"></strong>
+              </div>
+            </div>
+            <button class="primary-button" id="continue-button" type="button">
+              CONTINUAR <span aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODALS -->
+  <div class="modal-layer" id="mode-modal" hidden>
+    <div class="modal-backdrop" data-close-modal="mode-modal"></div>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="mode-modal-title">
+      <button class="modal-close" type="button" aria-label="Fechar">×</button>
+      <p class="eyebrow">ESCOLHA SEU DESAFIO</p>
+      <h2 id="mode-modal-title">Como você quer jogar?</h2>
+
+      <div class="mode-list">
+        <button class="mode-option" data-mode="complete" type="button">
+          <span>
+            <strong>COMPLETE A CENA</strong>
+            <small>Continue a fala e acerte a continuação.</small>
+          </span>
+          <span class="mode-arrow" aria-hidden="true"></span>
+        </button>
+
+        <button class="mode-option" data-mode="context" type="button">
+          <span>
+            <strong>FORA DE CONTEXTO</strong>
+            <small>Descubra de qual obra a fala veio.</small>
+          </span>
+          <span class="mode-arrow" aria-hidden="true"></span>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-layer" id="how-modal" hidden>
+    <div class="modal-backdrop" data-close-modal="how-modal"></div>
+    <section class="modal modal--how" role="dialog" aria-modal="true" aria-labelledby="how-modal-title">
+      <button class="modal-close" type="button" aria-label="Fechar">×</button>
+      <p class="eyebrow">COMO JOGAR</p>
+      <h2 id="how-modal-title">Uma cena. Três tentativas.</h2>
+
+      <div class="how-sections">
+        <div>
+          <span>01</span>
+          <div><strong>Escolha um modo</strong><p>Complete uma fala ou descubra de qual obra ela veio.</p></div>
+        </div>
+        <div>
+          <span>02</span>
+          <div><strong>Tente acertar</strong><p>Você tem três tentativas por partida. Aperte Enter para enviar.</p></div>
+        </div>
+        <div>
+          <span>03</span>
+          <div><strong>Peça uma dica</strong><p>As pistas aparecem aos poucos: ano, gênero e personagem.</p></div>
+        </div>
+        <div>
+          <span>04</span>
+          <div><strong>Sem mais tentativas?</strong><p>A resposta é revelada e você segue para o resultado.</p></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-layer" id="result-modal" hidden>
+    <div class="modal-backdrop"></div>
+    <section class="modal modal--result" role="dialog" aria-modal="true" aria-labelledby="result-title">
+      <p class="eyebrow" id="result-eyebrow">RESULTADO</p>
+      <h2 id="result-title"></h2>
+      <p class="result-copy" id="result-copy"></p>
+      <div class="result-details">
+
+        <div class="result-detail">
+          <span>OBRA</span>
+          <strong id="result-work"></strong>
+        </div>
+
+        <div class="result-detail">
+          <span>ANO</span>
+          <strong id="result-year"></strong>
+        </div>
+
+        <div class="result-detail">
+          <span>GÊNERO</span>
+          <strong id="result-genre"></strong>
+        </div>
+
+        <div class="result-detail">
+          <span>PERSONAGEM</span>
+          <strong id="result-character"></strong>
+        </div>
+
+        <div class="result-detail">
+          <span>RESPOSTA</span>
+          <strong id="result-answer"></strong>
+        </div>
+
+      </div>
+      <div class="result-score" id="result-score"></div>
+      <div class="result-actions">
+        <button class="primary-button" id="play-again-button" type="button">JOGAR NOVAMENTE</button>
+        <button class="secondary-button" id="home-button" type="button">VOLTAR AO INÍCIO</button>
+      </div>
+    </section>
+  </div>
+
+  <!--<script src="script.js"></script>-->
+</body>
+</html>
