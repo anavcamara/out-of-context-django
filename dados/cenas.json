@@ -1,0 +1,121 @@
+[
+    {
+    "id": 1,
+    "obra": "Apollo 13: Do Desastre ao Triunfo",
+    "tipo": "filme",
+    "personagem": "Jim Lovell",
+    "contexto": "Após uma falha grave na nave Apollo 13, Jim Lovell comunica a Houston que existe um problema a bordo.",
+    "genero": "Drama / aventura / história",
+    "ano": 1995,
+    "dialogo": "Houston, temos",
+    "resposta": "um problema."
+    },
+
+    {
+    "id": 2,
+    "obra": "O Mágico de Oz",
+    "tipo": "filme",
+    "personagem": "Dorothy",
+    "contexto": "Depois de retornar para casa, Dorothy expressa o quanto está feliz por estar novamente com sua família.",
+    "genero": "Fantasia / aventura / musical",
+    "ano": 1939,
+    "dialogo": "Não há lugar como",
+    "resposta": "o lar."
+    },
+
+    {
+    "id": 3,
+    "obra": "Harry Potter e a Pedra Filosofal",
+    "tipo": "filme",
+    "personagem": "Rúbeo Hagrid",
+    "contexto": "Hagrid revela a Harry que ele pertence ao mundo da magia.", 
+    "genero": "Fantasia / aventura",
+    "ano": 2001,
+    "dialogo": "Você é...",
+    "resposta": "um bruxo, Harry."
+    },
+
+    {
+    "id": 4,
+    "obra": "Star Wars: O Império Contra-Ataca",
+    "tipo": "filme",
+    "personagem": "Darth Vader",
+    "contexto": "Darth Vader revela a Luke Skywalker uma verdade sobre sua origem durante o confronto entre os dois.",
+    "genero": "Ficção científica / aventura", 
+    "ano": 1980,
+    "dialogo": "Não,",
+    "resposta": "eu sou seu pai."
+    },
+
+    {
+    "id": 5,
+    "obra": "O Poderoso Chefão",
+    "tipo": "filme",
+    "personagem": "Don Corleone",
+    "contexto": "Don Corleone garante a Johnny Fontane que resolverá seu problema com um produtor de Hollywood.",
+    "genero": "Crime / drama",
+    "ano": 1972,
+    "dialogo": "Vou fazer a ele uma oferta",
+    "resposta": "que ele não poderá recusar."
+    },
+
+    {
+    "id": 6,
+    "obra": "Forrest Gump",
+    "tipo": "filme",
+    "personagem": "Forrest Gump",
+    "contexto": "Enquanto conversa com pessoas em um ponto de ônibus, Forrest relembra um conselho que sua mãe costumava dar sobre a vida.",
+    "genero": "Drama / romance",
+    "ano": 1994,
+    "dialogo": "A vida é como uma caixa de chocolates,",
+    "resposta": "você nunca sabe o que vai encontrar."
+    },
+
+    {
+    "id": 7,
+    "obra": "Titanic",
+    "tipo": "filme",
+    "personagem": "Jack Dawson",
+    "contexto": "Jack está na proa do Titanic, celebrando a sensação de liberdade durante a viagem.",
+    "genero": "Drama / romance / desastre",
+    "ano": 1997,
+    "dialogo": "Eu sou o rei",
+    "resposta": "do mundo!"
+    },
+
+    {
+    "id": 8,
+    "obra": "O Rei Leão",
+    "tipo": "filme",
+    "personagem": "Mufasa",
+    "contexto": "Mufasa aparece para Simba e o lembra de sua identidade e de suas responsabilidades como futuro rei.",
+    "genero": "Animação / aventura / drama / musical",
+    "ano": 1994,
+    "dialogo": "Lembre-se quem",
+    "resposta": "você é."
+    },
+
+    {
+    "id": 9,
+    "obra": "Batman: O Cavaleiro das Trevas",
+    "tipo": "filme",
+    "personagem": "Coringa",
+    "contexto": "O Coringa provoca Batman ao questionar por que ele está tão sério.",
+    "genero": "Ação / crime / suspense",
+    "ano": 2008,
+    "dialogo": "Por que tão",
+    "resposta": "sério?"
+    },
+
+    {
+    "id": 10,
+    "obra": "Vingadores: Ultimato",
+    "tipo": "filme",
+    "personagem": "Tony Stark",
+    "contexto": "Durante a batalha final, Tony Stark usa as Joias do Infinito contra Thanos e seu exército.",
+    "genero": "Ação / aventura / ficção científica",
+    "ano": 2019,
+    "dialogo": "Eu sou",
+    "resposta": "o Homem de Ferro."
+    }
+]
