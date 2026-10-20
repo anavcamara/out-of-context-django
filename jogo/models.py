@@ -23,3 +23,20 @@ class Cena(models.Model):
     
     def __str__(self):
         return f"{self.obra.titulo}: {self.dialogo}"
+    
+class Partida(models.Model):
+    MODOS = [
+        ("complete", "Complete a cena"),
+        ("context", "Fora de contexto"),
+    ]
+
+    cena = models.ForeignKey(Cena, on_delete=models.PROTECT, related_name="partidas")
+    modo = models.CharField(max_length=10, choices=MODOS)
+    tentativas_usadas = models.PositiveSmallIntegerField(default=0)
+    dicas_usadas = models.PositiveSmallIntegerField(default=0)
+    terminou = models.BooleanField(default=False)
+    acertou = models.BooleanField(default=False)
+    criada_em = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Partida {self.pk} ({self.modo}) - {self.cena}"
