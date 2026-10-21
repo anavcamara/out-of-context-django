@@ -41,3 +41,16 @@ def similaridade(a, b):
     penalidadeTamanho = tamanhoMinimo / tamanhoMaximo
     
     return proximidade * penalidadeTamanho
+
+TOLERANCIA = 0.85
+MAX_TENTATIVAS = 3
+
+def resposta_correta(partida, texto):
+    texto = normalizar(texto)
+
+    if partida.modo == "complete":
+        esperada = normalizar(partida.cena.resposta)
+        return similaridade(texto, esperada) >= TOLERANCIA
+
+    obra = normalizar(partida.cena.obra.titulo)
+    return len(texto) >= 3 and (texto in obra or obra in texto)
