@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 class Obra(models.Model):
     TIPOS = [
@@ -29,6 +30,14 @@ class Partida(models.Model):
         ("complete", "Complete a cena"),
         ("context", "Fora de contexto"),
     ]
+    
+    usuario = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    null=True,
+    blank=True,
+    on_delete=models.SET_NULL,
+    related_name="partidas",
+    )
 
     cena = models.ForeignKey(Cena, on_delete=models.PROTECT, related_name="partidas")
     modo = models.CharField(max_length=10, choices=MODOS)

@@ -2,12 +2,14 @@ from django.shortcuts import render
 import json
 
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from .models import Cena, Obra, Partida
 from .services import MAX_TENTATIVAS, normalizar, resposta_correta
 
+from django.contrib.auth import login
+from django.contrib.auth.forms import UserCreationForm
 
 @require_POST
 def nova_partida(request):
@@ -21,7 +23,8 @@ def nova_partida(request):
     if cena is None:
         return JsonResponse({"erro": "Nenhuma cena cadastrada."}, status=503)
 
-    partida = Partida.objects.create(cena=cena, modo=modo)
+    usuario = request.user if request.user.is_authenticated else None
+    partida = Partida.objects.create(cena=cena, modo=modo, usuario=usuario)
 
     if modo == "complete":
         dialogo = cena.dialogo
@@ -125,4 +128,16 @@ def obras(request):
 
     return JsonResponse({"obras": encontrados})
 
+
+def cadastro(request):
+    if request.method == "POST":
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            usuario = form.save()
+            login(request, usuario)
+            return redirect("home")
+    else:
+        form = UserCreationForm()
+
+    return render(request, "registration/cadastro.html", {"form": form})
 
