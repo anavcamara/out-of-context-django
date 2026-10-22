@@ -1,0 +1,43 @@
+{% extends "registration/base_conta.html" %}
+
+{% block titulo %}Meu perfil{% endblock %}
+
+{% block conteudo %}
+  <h1>Perfil de {{ user.username }}</h1>
+
+  <h2>Resumo</h2>
+  <ul>
+    <li>Partidas finalizadas: {{ resumo.total }}</li>
+    <li>Acertos: {{ resumo.acertos }} ({{ resumo.taxa }}%)</li>
+    <li>Média de tentativas nos acertos: {{ resumo.media_tentativas|floatformat:1|default:"—" }}</li>
+    <li>Sequência atual de acertos: {{ sequencia }}</li>
+  </ul>
+
+  <h2>Por modo</h2>
+  {% if por_modo %}
+    <ul>
+      {% for linha in por_modo %}
+        <li>{{ linha.modo }}: {{ linha.acertos }} de {{ linha.total }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Você ainda não terminou nenhuma partida.</p>
+  {% endif %}
+
+  <h2>Últimas partidas</h2>
+  {% if recentes %}
+    <ul>
+      {% for partida in recentes %}
+        <li>
+          {{ partida.cena.obra.titulo }} ·
+          {{ partida.get_modo_display }} ·
+          {% if partida.acertou %}acertou{% else %}errou{% endif %} ·
+          {{ partida.tentativas_usadas }} tentativa(s) ·
+          {{ partida.criada_em|date:"d/m/Y H:i" }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Nada por aqui ainda. <a href="{% url 'home' %}">Que tal jogar uma?</a></p>
+  {% endif %}
+{% endblock %}

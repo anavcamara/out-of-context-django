@@ -9,4 +9,5 @@ urlpatterns = [
     path("api/obras/", views.obras, name="obras"),
     path("contas/cadastro/", views.cadastro, name="cadastro"),
     path("contas/", include("django.contrib.auth.urls")),
+    path("perfil/", views.perfil, name="perfil"),
 ]

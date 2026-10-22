@@ -11,6 +11,9 @@ from .services import MAX_TENTATIVAS, normalizar, resposta_correta
 from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
 
+from django.contrib.auth.decorators import login_required
+from django.db.models import Avg, Count, Q
+
 @require_POST
 def nova_partida(request):
     dados = json.loads(request.body or "{}")
@@ -140,4 +143,46 @@ def cadastro(request):
         form = UserCreationForm()
 
     return render(request, "registration/cadastro.html", {"form": form})
+
+@login_required
+def perfil(request):
+    finalizadas = request.user.partidas.filter(terminou=True)
+
+    resumo = finalizadas.aggregate(
+        total=Count("id"),
+        acertos=Count("id", filter=Q(acertou=True)),
+        media_tentativas=Avg("tentativas_usadas", filter=Q(acertou=True)),
+    )
+    total = resumo["total"]
+    resumo["taxa"] = round(100 * resumo["acertos"] / total) if total else 0
+
+    sequencia = 0
+    resultados = finalizadas.order_by("-criada_em", "-id").values_list(
+        "acertou", flat=True
+    )
+    for acertou in resultados:
+        if not acertou:
+            break
+        sequencia += 1
+
+    nomes_modos = dict(Partida.MODOS)
+    por_modo = [
+        {
+            "modo": nomes_modos[linha["modo"]],
+            "total": linha["total"],
+            "acertos": linha["acertos"],
+        }
+        for linha in finalizadas.values("modo")
+        .annotate(total=Count("id"), acertos=Count("id", filter=Q(acertou=True)))
+        .order_by("modo")
+    ]
+
+    recentes = finalizadas.select_related("cena__obra").order_by("-criada_em")[:10]
+
+    return render(request, "jogo/perfil.html", {
+        "resumo": resumo,
+        "sequencia": sequencia,
+        "por_modo": por_modo,
+        "recentes": recentes,
+    })
 

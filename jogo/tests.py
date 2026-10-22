@@ -121,3 +121,50 @@ class ContasTests(TestCase):
         })
         self.assertEqual(resposta.status_code, 302)
         self.assertTrue(User.objects.filter(username="bia").exists())
+        
+class PerfilTests(TestCase):
+    def setUp(self):
+        self.usuario = User.objects.create_user("ana", password="senha-forte-123")
+        obra = Obra.objects.create(
+            titulo="Apollo 13", tipo="filme", ano=1995, genero="Drama"
+        )
+        self.cena = Cena.objects.create(
+            obra=obra,
+            personagem="Jim Lovell",
+            contexto="Falha na nave.",
+            dialogo="Houston, temos",
+            resposta="um problema.",
+        )
+
+    def criar(self, **campos):
+        return Partida.objects.create(
+            cena=self.cena, usuario=self.usuario, modo="complete", **campos
+        )
+
+    def entrar(self):
+        self.client.login(username="ana", password="senha-forte-123")
+
+    def test_perfil_exige_login(self):
+        resposta = self.client.get("/perfil/")
+        self.assertEqual(resposta.status_code, 302)
+        self.assertIn("/contas/login/", resposta.url)
+
+    def test_estatisticas_ignoram_partidas_nao_terminadas(self):
+        self.criar(terminou=True, acertou=True, tentativas_usadas=1)
+        self.criar(terminou=True, acertou=False, tentativas_usadas=3)
+        self.criar(terminou=False, tentativas_usadas=1)
+        self.entrar()
+
+        resumo = self.client.get("/perfil/").context["resumo"]
+        self.assertEqual(resumo["total"], 2)
+        self.assertEqual(resumo["acertos"], 1)
+        self.assertEqual(resumo["taxa"], 50)
+
+    def test_sequencia_conta_os_acertos_mais_recentes(self):
+        self.criar(terminou=True, acertou=False, tentativas_usadas=3)
+        self.criar(terminou=True, acertou=True, tentativas_usadas=1)
+        self.criar(terminou=True, acertou=True, tentativas_usadas=2)
+        self.entrar()
+
+        resposta = self.client.get("/perfil/")
+        self.assertEqual(resposta.context["sequencia"], 2)
