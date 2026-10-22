@@ -6,6 +6,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Out of Context — um jogo de cenas, falas e memória.">
+  <meta name="csrf-token" content="{{ csrf_token }}">
   <title>Out of Context</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -245,6 +246,6 @@
     </section>
   </div>
 
-  <!--<script src="script.js"></script>-->
+  <script src="{% static 'jogo/script.js' %}"></script>
 </body>
 </html>
