@@ -1,8 +1,9 @@
 import json
 
 from django.test import TestCase
+from django.contrib.auth.models import User
 
-from .models import Cena, Obra
+from .models import Cena, Obra, Partida 
 from .services import levenshtein, normalizar, similaridade
 
 
@@ -100,3 +101,23 @@ class PartidaApiTests(TestCase):
         Obra.objects.create(titulo="Amélie", tipo="filme", ano=2001, genero="Romance")
         dados = self.client.get("/api/obras/", {"q": "amelie"}).json()
         self.assertEqual(dados["obras"], ["Amélie"])
+        
+    def test_partida_fica_ligada_ao_usuario_logado(self):
+        usuario = User.objects.create_user("ana", password="senha-forte-123")
+        self.client.login(username="ana", password="senha-forte-123")
+        pid = self.nova_partida()
+        self.assertEqual(Partida.objects.get(id=pid).usuario, usuario)
+
+    def test_partida_anonima_continua_funcionando(self):
+        pid = self.nova_partida()
+        self.assertIsNone(Partida.objects.get(id=pid).usuario)
+        
+class ContasTests(TestCase):
+    def test_cadastro_cria_usuario_e_faz_login(self):
+        resposta = self.client.post("/contas/cadastro/", {
+            "username": "bia",
+            "password1": "senha-forte-123",
+            "password2": "senha-forte-123",
+        })
+        self.assertEqual(resposta.status_code, 302)
+        self.assertTrue(User.objects.filter(username="bia").exists())
