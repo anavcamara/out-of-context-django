@@ -5,8 +5,8 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
-from .models import Cena, Partida
-from .services import MAX_TENTATIVAS, resposta_correta
+from .models import Cena, Obra, Partida
+from .services import MAX_TENTATIVAS, normalizar, resposta_correta
 
 
 @require_POST
@@ -79,5 +79,50 @@ def tentativa(request, partida_id):
 
 def home(request):
     return render(request, "jogo/index.html")
+
+def _dicas(cena):
+    return [
+        ("ANO", cena.obra.ano),
+        ("GÊNERO", cena.obra.genero),
+        ("PERSONAGEM", cena.personagem),
+    ]
+
+
+@require_POST
+def dica(request, partida_id):
+    partida = get_object_or_404(
+        Partida.objects.select_related("cena__obra"), id=partida_id
+    )
+
+    if partida.terminou:
+        return JsonResponse({"erro": "Esta partida já terminou."}, status=400)
+
+    dicas = _dicas(partida.cena)
+
+    if partida.dicas_usadas >= len(dicas):
+        return JsonResponse({"erro": "Todas as dicas já foram reveladas."}, status=400)
+
+    titulo, valor = dicas[partida.dicas_usadas]
+    partida.dicas_usadas += 1
+    partida.save()
+
+    return JsonResponse({
+        "numero": partida.dicas_usadas,
+        "titulo": titulo,
+        "valor": str(valor),
+        "restantes": len(dicas) - partida.dicas_usadas,
+    })
+
+
+def obras(request):
+    busca = normalizar(request.GET.get("q", ""))
+
+    if len(busca) < 2:
+        return JsonResponse({"obras": []})
+
+    titulos = Obra.objects.values_list("titulo", flat=True)
+    encontrados = [t for t in titulos if busca in normalizar(t)][:5]
+
+    return JsonResponse({"obras": encontrados})
 
 

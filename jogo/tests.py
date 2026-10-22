@@ -83,3 +83,20 @@ class PartidaApiTests(TestCase):
         url = f"/api/partida/{pid}/tentativa/"
         self.post(url, {"resposta": "um problema"})
         self.assertEqual(self.post(url, {"resposta": "um problema"}).status_code, 400)
+        
+    def test_dicas_em_ordem_e_com_limite(self):
+        pid = self.nova_partida()
+        url = f"/api/partida/{pid}/dica/"
+
+        primeira = self.post(url, {}).json()
+        self.assertEqual(primeira["titulo"], "ANO")
+        self.assertEqual(primeira["restantes"], 2)
+
+        self.post(url, {})
+        self.post(url, {})
+        self.assertEqual(self.post(url, {}).status_code, 400)
+
+    def test_busca_de_obras_ignora_acentos(self):
+        Obra.objects.create(titulo="Amélie", tipo="filme", ano=2001, genero="Romance")
+        dados = self.client.get("/api/obras/", {"q": "amelie"}).json()
+        self.assertEqual(dados["obras"], ["Amélie"])
