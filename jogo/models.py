@@ -25,6 +25,13 @@ class Cena(models.Model):
     def __str__(self):
         return f"{self.obra.titulo}: {self.dialogo}"
     
+class DesafioDiario(models.Model):
+    data = models.DateField(unique=True)
+    cena = models.ForeignKey(Cena, on_delete=models.PROTECT, related_name="desafios")
+
+    def __str__(self):
+        return f"{self.data:%d/%m/%Y} - {self.cena}"
+    
 class Partida(models.Model):
     MODOS = [
         ("complete", "Complete a cena"),
@@ -46,6 +53,23 @@ class Partida(models.Model):
     terminou = models.BooleanField(default=False)
     acertou = models.BooleanField(default=False)
     criada_em = models.DateTimeField(auto_now_add=True)
+    
+    desafio = models.ForeignKey(
+        DesafioDiario,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="partidas",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["usuario", "desafio"],
+                name="uma_partida_por_usuario_por_desafio",
+            )
+        ]
 
     def __str__(self):
         return f"Partida {self.pk} ({self.modo}) - {self.cena}"
+    
