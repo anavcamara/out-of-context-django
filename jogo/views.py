@@ -14,6 +14,9 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Q
 
+from django.core.exceptions import PermissionDenied
+from .diario import desafio_de_hoje
+
 @require_POST
 def nova_partida(request):
     dados = json.loads(request.body or "{}")
@@ -52,7 +55,7 @@ def _revelacao(cena):
 
 @require_POST
 def tentativa(request, partida_id):
-    partida = get_object_or_404(Partida, id=partida_id)
+    partida = _buscar_partida(request, partida_id)
 
     if partida.terminou:
         return JsonResponse({"erro": "Esta partida já terminou."}, status=400)
@@ -184,5 +187,57 @@ def perfil(request):
         "sequencia": sequencia,
         "por_modo": por_modo,
         "recentes": recentes,
+    })
+    
+def _buscar_partida(request, partida_id):
+    partida = get_object_or_404(
+        Partida.objects.select_related("cena__obra"), id=partida_id
+    )
+
+    if partida.usuario_id is not None and partida.usuario_id != request.user.id:
+        raise PermissionDenied
+
+    return partida
+
+
+@require_POST
+def desafio_hoje(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"erro": "Entre na sua conta para jogar o desafio diário."}, status=401
+        )
+
+    desafio = desafio_de_hoje()
+    if desafio is None:
+        return JsonResponse({"erro": "Nenhuma cena cadastrada."}, status=503)
+
+    partida, _ = Partida.objects.get_or_create(
+        usuario=request.user,
+        desafio=desafio,
+        defaults={"cena": desafio.cena, "modo": "complete"},
+    )
+    cena = partida.cena
+
+    if partida.terminou:
+        return JsonResponse({
+            "ja_jogou": True,
+            "acertou": partida.acertou,
+            "tentativas_usadas": partida.tentativas_usadas,
+            "revelacao": _revelacao(cena),
+        })
+
+    dicas = [
+        {"numero": numero, "titulo": titulo, "valor": str(valor)}
+        for numero, (titulo, valor) in enumerate(
+            _dicas(cena)[: partida.dicas_usadas], start=1
+        )
+    ]
+
+    return JsonResponse({
+        "ja_jogou": False,
+        "partida_id": partida.id,
+        "dialogo": cena.dialogo,
+        "tentativas_restantes": MAX_TENTATIVAS - partida.tentativas_usadas,
+        "dicas": dicas,
     })
 

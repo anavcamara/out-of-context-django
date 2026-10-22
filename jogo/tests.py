@@ -1,9 +1,12 @@
 import json
+from datetime import timedelta
 
-from django.test import TestCase
 from django.contrib.auth.models import User
+from django.test import TestCase
+from django.utils import timezone
 
-from .models import Cena, Obra, Partida 
+from .diario import desafio_de_hoje, sequencia_diaria
+from .models import Cena, DesafioDiario, Obra, Partida
 from .services import levenshtein, normalizar, similaridade
 
 
@@ -168,3 +171,93 @@ class PerfilTests(TestCase):
 
         resposta = self.client.get("/perfil/")
         self.assertEqual(resposta.context["sequencia"], 2)
+
+class DesafioDiarioTests(TestCase):
+    def setUp(self):
+        self.usuario = User.objects.create_user("ana", password="senha-forte-123")
+        obra = Obra.objects.create(
+            titulo="Apollo 13", tipo="filme", ano=1995, genero="Drama"
+        )
+        self.cena = Cena.objects.create(
+            obra=obra,
+            personagem="Jim Lovell",
+            contexto="Falha na nave.",
+            dialogo="Houston, temos",
+            resposta="um problema.",
+        )
+        Cena.objects.create(
+            obra=obra,
+            personagem="Fred Haise",
+            contexto="Outra cena.",
+            dialogo="Outra fala",
+            resposta="uma continuação.",
+        )
+
+    def entrar(self):
+        self.client.login(username="ana", password="senha-forte-123")
+
+    def abrir_desafio(self):
+        return self.client.post("/api/desafio/hoje/", content_type="application/json")
+
+    def test_desafio_exige_login(self):
+        self.assertEqual(self.abrir_desafio().status_code, 401)
+
+    def test_mesmo_desafio_o_dia_todo(self):
+        primeiro = desafio_de_hoje()
+        segundo = desafio_de_hoje()
+        self.assertEqual(primeiro.id, segundo.id)
+        self.assertEqual(DesafioDiario.objects.count(), 1)
+
+    def test_reabrir_continua_a_mesma_partida(self):
+        self.entrar()
+        primeira = self.abrir_desafio().json()["partida_id"]
+        segunda = self.abrir_desafio().json()["partida_id"]
+        self.assertEqual(primeira, segunda)
+
+    def test_depois_de_terminar_devolve_o_resultado(self):
+        self.entrar()
+        pid = self.abrir_desafio().json()["partida_id"]
+        certa = desafio_de_hoje().cena.resposta
+
+        self.client.post(
+            f"/api/partida/{pid}/tentativa/",
+            json.dumps({"resposta": certa}),
+            content_type="application/json",
+        )
+
+        de_novo = self.abrir_desafio().json()
+        self.assertTrue(de_novo["ja_jogou"])
+        self.assertTrue(de_novo["acertou"])
+
+    def test_nao_mexe_na_partida_de_outro_usuario(self):
+        self.entrar()
+        pid = self.abrir_desafio().json()["partida_id"]
+
+        self.client.logout()
+        User.objects.create_user("bia", password="senha-forte-123")
+        self.client.login(username="bia", password="senha-forte-123")
+
+        resposta = self.client.post(
+            f"/api/partida/{pid}/tentativa/",
+            json.dumps({"resposta": "qualquer coisa"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resposta.status_code, 403)
+
+    def test_sequencia_diaria(self):
+        hoje = timezone.localdate()
+
+        for dias in (0, 1, 2, 4):
+            desafio = DesafioDiario.objects.create(
+                data=hoje - timedelta(days=dias), cena=self.cena
+            )
+            Partida.objects.create(
+                cena=self.cena,
+                usuario=self.usuario,
+                modo="complete",
+                desafio=desafio,
+                terminou=True,
+                acertou=True,
+            )
+
+        self.assertEqual(sequencia_diaria(self.usuario, hoje), 3)
