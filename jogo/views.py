@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.utils import timezone
 import json
 
 from django.http import JsonResponse
@@ -15,7 +16,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Q
 
 from django.core.exceptions import PermissionDenied
-from .diario import desafio_de_hoje
+from .diario import desafio_de_hoje, sequencia_diaria
 
 @require_POST
 def nova_partida(request):
@@ -52,6 +53,12 @@ def _revelacao(cena):
         "personagem": cena.personagem,
     }
 
+def _dicas(cena):
+    return [
+        ("ANO", cena.obra.ano),
+        ("GÊNERO", cena.obra.genero),
+        ("PERSONAGEM", cena.personagem),
+    ]
 
 @require_POST
 def tentativa(request, partida_id):
@@ -87,14 +94,16 @@ def tentativa(request, partida_id):
     return JsonResponse(resposta)
 
 def home(request):
-    return render(request, "jogo/index.html")
+    contexto = {}
 
-def _dicas(cena):
-    return [
-        ("ANO", cena.obra.ano),
-        ("GÊNERO", cena.obra.genero),
-        ("PERSONAGEM", cena.personagem),
-    ]
+    if request.user.is_authenticated:
+        hoje = timezone.localdate()
+        contexto["sequencia_diaria"] = sequencia_diaria(request.user, hoje)
+        contexto["jogou_hoje"] = Partida.objects.filter(
+            usuario=request.user, desafio__data=hoje, terminou=True
+        ).exists()
+
+    return render(request, "jogo/index.html", contexto)
 
 
 @require_POST

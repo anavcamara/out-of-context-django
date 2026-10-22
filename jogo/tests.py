@@ -261,3 +261,15 @@ class DesafioDiarioTests(TestCase):
             )
 
         self.assertEqual(sequencia_diaria(self.usuario, hoje), 3)
+
+class HomeTests(TestCase):
+    def test_home_anonima_funciona(self):
+        self.assertEqual(self.client.get("/").status_code, 200)
+
+    def test_home_logada_traz_dados_do_desafio(self):
+        User.objects.create_user("ana", password="senha-forte-123")
+        self.client.login(username="ana", password="senha-forte-123")
+
+        resposta = self.client.get("/")
+        self.assertEqual(resposta.context["sequencia_diaria"], 0)
+        self.assertFalse(resposta.context["jogou_hoje"])
