@@ -1354,3 +1354,9 @@ input:focus-visible {
 .suggestions:empty {
   display: none;
 }
+
+.daily-info {
+  margin-top: 16px;
+  font-size: 14px;
+  opacity: 0.8;
+}

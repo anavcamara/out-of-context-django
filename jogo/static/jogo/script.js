@@ -1,10 +1,12 @@
 const MAX_TENTATIVAS = 3;
+const TOTAL_DICAS = 3;
 
 const estado = {
   modo: null,
   partidaId: null,
   tentativasRestantes: MAX_TENTATIVAS,
   dicasUsadas: 0,
+  diario: false,
   terminou: false,
   acertou: false,
   revelacao: null,
@@ -17,6 +19,7 @@ const elementos = {
   // Home
   homeScreen: document.getElementById("home-screen"),
   playButton: document.getElementById("play-button"),
+  dailyButton: document.getElementById("daily-button"),
   brandButton: document.getElementById("brand-button"),
   headerAction: document.getElementById("header-action"),
   loadError: document.getElementById("load-error"),
@@ -99,7 +102,9 @@ async function api(url, corpo = {}) {
   const dados = await resposta.json().catch(() => ({}));
 
   if (!resposta.ok) {
-    throw new Error(dados.erro || "Algo deu errado. Tente novamente.");
+    const erro = new Error(dados.erro || "Algo deu errado. Tente novamente.");
+    erro.status = resposta.status;
+    throw erro;
   }
 
   return dados;
@@ -176,6 +181,7 @@ async function iniciarJogo(modo) {
     const dados = await api("/api/partida/nova/", { modo });
 
     estado.modo = modo;
+    estado.diario = false;
     estado.partidaId = dados.partida_id;
     estado.tentativasRestantes = dados.tentativas_restantes;
     estado.dicasUsadas = 0;
@@ -208,16 +214,92 @@ async function iniciarJogo(modo) {
 }
 
 // ==============================
+// DESAFIO DO DIA
+// ==============================
+
+async function iniciarDesafio() {
+  if (estado.ocupado) {
+    return;
+  }
+
+  estado.ocupado = true;
+
+  try {
+    const dados = await api("/api/desafio/hoje/");
+
+    estado.modo = "complete";
+    estado.diario = true;
+    estado.terminou = false;
+    estado.acertou = false;
+    estado.revelacao = null;
+    estado.dicasUsadas = 0;
+
+    elementos.loadError.hidden = true;
+
+    // Já jogou hoje: só mostra o resultado, sem abrir a tela de jogo.
+    if (dados.ja_jogou) {
+      estado.terminou = true;
+      estado.acertou = dados.acertou;
+      estado.revelacao = dados.revelacao;
+      estado.tentativasRestantes = MAX_TENTATIVAS - dados.tentativas_usadas;
+      mostrarResultado();
+      return;
+    }
+
+    estado.partidaId = dados.partida_id;
+    estado.tentativasRestantes = dados.tentativas_restantes;
+
+    elementos.homeScreen.hidden = true;
+    elementos.gameScreen.hidden = false;
+
+    prepararTelaDoModo();
+    carregarCena(dados.dialogo);
+
+    // Se a pessoa recarregou a página no meio da partida,
+    // as dicas já usadas voltam do servidor.
+    dados.dicas.forEach(adicionarDica);
+    estado.dicasUsadas = dados.dicas.length;
+    atualizarBotaoDica();
+
+    requestAnimationFrame(() => {
+      elementos.gameScreen.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    });
+  } catch (erro) {
+    console.error(erro);
+
+    if (erro.status === 401) {
+      window.location.href = "/contas/login/?next=/";
+      return;
+    }
+
+    elementos.loadError.hidden = false;
+  } finally {
+    estado.ocupado = false;
+  }
+}
+
+if (elementos.dailyButton) {
+  elementos.dailyButton.addEventListener("click", iniciarDesafio);
+}
+
+// ==============================
 // PREPARAR MODO
 // ==============================
 
 function prepararTelaDoModo() {
   if (estado.modo === "complete") {
-    elementos.gameModeLabel.textContent = "COMPLETE A CENA";
-    elementos.gameEyebrow.textContent = "COMPLETE A FALA";
+    elementos.gameModeLabel.textContent =
+      estado.diario ? "DESAFIO DO DIA" : "COMPLETE A CENA";
+    elementos.gameEyebrow.textContent =
+      estado.diario ? "A CENA DE HOJE" : "COMPLETE A FALA";
     elementos.gameTitle.textContent = "Continue a cena.";
     elementos.gameCopy.textContent =
-      "Complete a fala antes que suas três tentativas acabem.";
+      estado.diario
+        ? "Uma cena por dia, igual para todo mundo. Você só tem uma partida."
+        : "Complete a fala antes que suas três tentativas acabem.";
 
     elementos.completeForm.hidden = false;
     elementos.contextForm.hidden = true;
@@ -295,6 +377,36 @@ function renderizarTentativas() {
 // DICAS
 // ==============================
 
+function adicionarDica(dica) {
+  const bloco = document.createElement("div");
+  bloco.classList.add("hint");
+
+  const numero = document.createElement("span");
+  numero.classList.add("hint-number");
+  numero.textContent = `DICA ${dica.numero}`;
+
+  const titulo = document.createElement("strong");
+  titulo.textContent = dica.titulo;
+
+  const valor = document.createElement("p");
+  valor.textContent = dica.valor || "Informação ainda não cadastrada.";
+
+  bloco.append(numero, titulo, valor);
+  elementos.hints.appendChild(bloco);
+}
+
+function atualizarBotaoDica() {
+  if (estado.dicasUsadas >= TOTAL_DICAS) {
+    elementos.hintButton.innerHTML = `<span>TODAS AS DICAS REVELADAS</span>`;
+    elementos.hintButton.disabled = true;
+  } else if (estado.dicasUsadas > 0) {
+    elementos.hintButton.innerHTML = `
+      <span class="hint-icon" aria-hidden="true">+</span>
+      <span>PEDIR OUTRA DICA</span>
+    `;
+  }
+}
+
 async function mostrarDica() {
   if (estado.terminou || estado.ocupado) {
     return;
@@ -306,33 +418,9 @@ async function mostrarDica() {
     // O servidor decide qual é a próxima dica e quantas já foram dadas.
     const dica = await api(`/api/partida/${estado.partidaId}/dica/`);
 
-    const bloco = document.createElement("div");
-    bloco.classList.add("hint");
-
-    const numero = document.createElement("span");
-    numero.classList.add("hint-number");
-    numero.textContent = `DICA ${dica.numero}`;
-
-    const titulo = document.createElement("strong");
-    titulo.textContent = dica.titulo;
-
-    const valor = document.createElement("p");
-    valor.textContent = dica.valor || "Informação ainda não cadastrada.";
-
-    bloco.append(numero, titulo, valor);
-    elementos.hints.appendChild(bloco);
-
+    adicionarDica(dica);
     estado.dicasUsadas = dica.numero;
-
-    if (dica.restantes > 0) {
-      elementos.hintButton.innerHTML = `
-        <span class="hint-icon" aria-hidden="true">+</span>
-        <span>PEDIR OUTRA DICA</span>
-      `;
-    } else {
-      elementos.hintButton.innerHTML = `<span>TODAS AS DICAS REVELADAS</span>`;
-      elementos.hintButton.disabled = true;
-    }
+    atualizarBotaoDica();
   } catch (erro) {
     console.error(erro);
   } finally {
@@ -475,10 +563,13 @@ function mostrarResultado() {
   elementos.resultTitle.textContent =
     estado.acertou ? "Essa você conhecia." : "Agora você conhece a resposta.";
 
-  elementos.resultCopy.textContent =
-    estado.acertou
+  elementos.resultCopy.textContent = estado.diario
+    ? "Volte amanhã para a próxima cena do desafio."
+    : estado.acertou
       ? "Você completou o desafio."
       : "A cena fica registrada para a próxima tentativa.";
+
+  elementos.playAgainButton.hidden = estado.diario;
 
   elementos.resultWork.textContent = r.obra || "Não informado";
   elementos.resultYear.textContent = r.ano || "Não informado";
@@ -520,7 +611,9 @@ elementos.backButton.addEventListener("click", () => {
   elementos.gameScreen.hidden = true;
   elementos.homeScreen.hidden = false;
 
-  abrirModal(elementos.modeModal);
+  if (!estado.diario) {
+    abrirModal(elementos.modeModal);
+  }
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 });

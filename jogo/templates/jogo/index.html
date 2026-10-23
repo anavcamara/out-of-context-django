@@ -43,6 +43,18 @@
             <span>JOGAR</span>
             <span aria-hidden="true"></span>
           </button>
+          {% if user.is_authenticated %}
+          <button class="secondary-button" id="daily-button" type="button">
+            DESAFIO DO DIA
+          </button>
+          <p class="daily-info">
+            {% if jogou_hoje %}Você já jogou hoje. {% endif %}Sequência: {{ sequencia_diaria }} dia(s)
+          </p>
+        {% else %}
+          <p class="daily-info">
+            <a href="{% url 'login' %}?next={% url 'home' %}">Entre</a> para jogar o desafio diário.
+          </p>
+        {% endif %}
           <p class="load-error" id="load-error" hidden>
             Não foi possível carregar as cenas do jogo. Recarregue a página para tentar novamente.
           </p>
