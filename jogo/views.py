@@ -9,14 +9,14 @@ from django.views.decorators.http import require_POST
 from .models import Cena, Obra, Partida
 from .services import MAX_TENTATIVAS, normalizar, resposta_correta
 
-from django.contrib.auth import login
+from django.contrib.auth import get_user_model, login
 from django.contrib.auth.forms import UserCreationForm
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Q
 
 from django.core.exceptions import PermissionDenied
-from .diario import desafio_de_hoje, sequencia_diaria
+from .diario import desafio_de_hoje, ranking_sequencias, sequencia_diaria
 
 @require_POST
 def nova_partida(request):
@@ -248,5 +248,22 @@ def desafio_hoje(request):
         "dialogo": cena.dialogo,
         "tentativas_restantes": MAX_TENTATIVAS - partida.tentativas_usadas,
         "dicas": dicas,
+    })
+    
+def ranking(request):
+    Usuario = get_user_model()
+
+    geral = (
+        Usuario.objects.annotate(
+            acertos=Count("partidas", filter=Q(partidas__acertou=True)),
+            total=Count("partidas", filter=Q(partidas__terminou=True)),
+        )
+        .filter(acertos__gt=0)
+        .order_by("-acertos", "total", "username")[:10]
+    )
+
+    return render(request, "jogo/ranking.html", {
+        "geral": geral,
+        "sequencias": ranking_sequencias(timezone.localdate()),
     })
 

@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from .diario import desafio_de_hoje, sequencia_diaria
+from .diario import desafio_de_hoje, ranking_sequencias, sequencia_diaria
 from .models import Cena, DesafioDiario, Obra, Partida
 from .services import levenshtein, normalizar, similaridade
 
@@ -273,3 +273,61 @@ class HomeTests(TestCase):
         resposta = self.client.get("/")
         self.assertEqual(resposta.context["sequencia_diaria"], 0)
         self.assertFalse(resposta.context["jogou_hoje"])
+        
+class RankingTests(TestCase):
+    def setUp(self):
+        self.ana = User.objects.create_user("ana", password="senha-forte-123")
+        self.bia = User.objects.create_user("bia", password="senha-forte-123")
+        self.carla = User.objects.create_user("carla", password="senha-forte-123")
+
+        obra = Obra.objects.create(
+            titulo="Apollo 13", tipo="filme", ano=1995, genero="Drama"
+        )
+        self.cena = Cena.objects.create(
+            obra=obra,
+            personagem="Jim Lovell",
+            contexto="Falha na nave.",
+            dialogo="Houston, temos",
+            resposta="um problema.",
+        )
+
+    def partida(self, usuario, acertou, desafio=None):
+        return Partida.objects.create(
+            cena=self.cena,
+            usuario=usuario,
+            modo="complete",
+            desafio=desafio,
+            terminou=True,
+            acertou=acertou,
+        )
+
+    def test_ranking_geral_ordena_por_acertos(self):
+        self.partida(self.ana, True)
+        self.partida(self.ana, True)
+        self.partida(self.bia, True)
+        self.partida(self.bia, False)
+
+        resposta = self.client.get("/ranking/")
+        nomes = [jogador.username for jogador in resposta.context["geral"]]
+        self.assertEqual(nomes, ["ana", "bia"])
+
+    def test_quem_so_errou_nao_aparece(self):
+        self.partida(self.carla, False)
+
+        resposta = self.client.get("/ranking/")
+        self.assertEqual(list(resposta.context["geral"]), [])
+
+    def test_ranking_de_sequencias(self):
+        hoje = timezone.localdate()
+        desafio_hoje = DesafioDiario.objects.create(data=hoje, cena=self.cena)
+        desafio_ontem = DesafioDiario.objects.create(
+            data=hoje - timedelta(days=1), cena=self.cena
+        )
+
+        self.partida(self.ana, True, desafio_hoje)
+        self.partida(self.ana, True, desafio_ontem)
+        self.partida(self.bia, True, desafio_hoje)
+
+        self.assertEqual(
+            ranking_sequencias(hoje), [("ana", 2), ("bia", 1)]
+        )

@@ -39,3 +39,42 @@ def sequencia_diaria(usuario, hoje):
         dia -= timedelta(days=1)
 
     return sequencia
+
+def _contar_sequencia(datas, hoje):
+    dia = hoje if hoje in datas else hoje - timedelta(days=1)
+    sequencia = 0
+
+    while dia in datas:
+        sequencia += 1
+        dia -= timedelta(days=1)
+
+    return sequencia
+
+
+def sequencia_diaria(usuario, hoje):
+    vitorias = set(
+        Partida.objects.filter(
+            usuario=usuario, desafio__isnull=False, acertou=True
+        ).values_list("desafio__data", flat=True)
+    )
+    return _contar_sequencia(vitorias, hoje)
+
+
+def ranking_sequencias(hoje, limite=10):
+    vitorias = {}
+
+    linhas = Partida.objects.filter(
+        usuario__isnull=False, desafio__isnull=False, acertou=True
+    ).values_list("usuario__username", "desafio__data")
+
+    for username, data in linhas:
+        vitorias.setdefault(username, set()).add(data)
+
+    ranking = []
+    for username, datas in vitorias.items():
+        sequencia = _contar_sequencia(datas, hoje)
+        if sequencia > 0:
+            ranking.append((username, sequencia))
+
+    ranking.sort(key=lambda item: (-item[1], item[0]))
+    return ranking[:limite]

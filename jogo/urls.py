@@ -11,4 +11,5 @@ urlpatterns = [
     path("contas/", include("django.contrib.auth.urls")),
     path("perfil/", views.perfil, name="perfil"),
     path("api/desafio/hoje/", views.desafio_hoje, name="desafio_hoje"),
+    path("ranking/", views.ranking, name="ranking"),
 ]

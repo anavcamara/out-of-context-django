@@ -1,0 +1,32 @@
+{% extends "registration/base_conta.html" %}
+
+{% block titulo %}Ranking{% endblock %}
+
+{% block conteudo %}
+  <h1>Ranking</h1>
+
+  <h2>Mais acertos</h2>
+  {% if geral %}
+    <ol>
+      {% for jogador in geral %}
+        <li>
+          {{ jogador.username }}: {{ jogador.acertos }} acerto(s)
+          em {{ jogador.total }} partida(s)
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p>Ninguém pontuou ainda. Que tal ser o primeiro?</p>
+  {% endif %}
+
+  <h2>Maior sequência no desafio do dia</h2>
+  {% if sequencias %}
+    <ol>
+      {% for nome, dias in sequencias %}
+        <li>{{ nome }}: {{ dias }} dia(s)</li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p>Ainda não há sequências. Jogue o desafio do dia!</p>
+  {% endif %}
+{% endblock %}
