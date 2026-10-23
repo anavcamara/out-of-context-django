@@ -1,16 +1,41 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block titulo %}{% endblock %} · Out of Context</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'jogo/style.css' %}">
 </head>
+
 <body>
-  <main>
-    {% block conteudo %}{% endblock %}
-    <p><a href="{% url 'home' %}">← Voltar ao jogo</a></p>
-  </main>
+  <div class="app">
+    <header class="site-header">
+      <a class="brand" href="{% url 'home' %}">OUT OF CONTEXT</a>
+
+      <nav aria-label="Principal">
+  <a class="header-action" href="{% url 'ranking' %}">RANKING</a>
+
+  <div class="account-nav">
+    {% if user.is_authenticated %}
+      <a class="header-action header-user" href="{% url 'perfil' %}">{{ user.username|upper }}</a>
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button class="header-action" type="submit">SAIR</button>
+      </form>
+    {% else %}
+      <a class="header-action" href="{% url 'login' %}">ENTRAR</a>
+    {% endif %}
+  </div>
+</nav>
+    </header>
+
+    <main class="page {% block classe_pagina %}{% endblock %}">
+      {% block conteudo %}{% endblock %}
+    </main>
+  </div>
 </body>
 </html>

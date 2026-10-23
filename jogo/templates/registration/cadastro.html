@@ -3,11 +3,16 @@
 {% block titulo %}Criar conta{% endblock %}
 
 {% block conteudo %}
+  <p class="eyebrow">NOVA CONTA</p>
   <h1>Criar conta</h1>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Criar conta</button>
-  </form>
-  <p>Já tem conta? <a href="{% url 'login' %}">Entrar</a></p>
+  <p class="page-copy">
+    Seu nome de usuário aparece no ranking público. Não use seu nome completo
+    nem informações pessoais.
+  </p>
+
+  {% include "registration/_form.html" with botao="CRIAR CONTA" %}
+
+  <p class="page-alt">
+    Já tem conta? <a href="{% url 'login' %}">Entrar</a>
+  </p>
 {% endblock %}

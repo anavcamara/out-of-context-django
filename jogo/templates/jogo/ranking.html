@@ -1,32 +1,47 @@
 {% extends "registration/base_conta.html" %}
 
 {% block titulo %}Ranking{% endblock %}
+{% block classe_pagina %}page--wide{% endblock %}
 
 {% block conteudo %}
+  <p class="eyebrow">QUEM MAIS CONHECE AS CENAS</p>
   <h1>Ranking</h1>
 
-  <h2>Mais acertos</h2>
-  {% if geral %}
-    <ol>
-      {% for jogador in geral %}
-        <li>
-          {{ jogador.username }}: {{ jogador.acertos }} acerto(s)
-          em {{ jogador.total }} partida(s)
-        </li>
-      {% endfor %}
-    </ol>
-  {% else %}
-    <p>Ninguém pontuou ainda. Que tal ser o primeiro?</p>
-  {% endif %}
+  <section>
+    <h2>MAIS ACERTOS</h2>
+    {% if geral %}
+      <ol class="rank-list">
+        {% for jogador in geral %}
+          <li>
+            <strong>
+              {{ jogador.username }}
+              {% if jogador == user %}<span class="muted">· você</span>{% endif %}
+            </strong>
+            <span class="valor">{{ jogador.acertos }} ACERTOS · {{ jogador.total }} PARTIDAS</span>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="empty">Ninguém pontuou ainda. Que tal ser o primeiro?</p>
+    {% endif %}
+  </section>
 
-  <h2>Maior sequência no desafio do dia</h2>
-  {% if sequencias %}
-    <ol>
-      {% for nome, dias in sequencias %}
-        <li>{{ nome }}: {{ dias }} dia(s)</li>
-      {% endfor %}
-    </ol>
-  {% else %}
-    <p>Ainda não há sequências. Jogue o desafio do dia!</p>
-  {% endif %}
+  <section>
+    <h2>MAIOR SEQUÊNCIA NO DESAFIO DO DIA</h2>
+    {% if sequencias %}
+      <ol class="rank-list">
+        {% for nome, dias in sequencias %}
+          <li>
+            <strong>
+              {{ nome }}
+              {% if nome == user.username %}<span class="muted">· você</span>{% endif %}
+            </strong>
+            <span class="valor">{{ dias }} DIA(S)</span>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="empty">Ainda não há sequências. Jogue o desafio do dia!</p>
+    {% endif %}
+  </section>
 {% endblock %}

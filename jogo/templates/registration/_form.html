@@ -1,0 +1,24 @@
+<form method="post" class="auth-form" novalidate>
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="form-errors" role="alert">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  {% for campo in form %}
+    <div class="field">
+      <label for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+      {{ campo }}
+
+      {% if campo.help_text %}
+        <div class="help">{{ campo.help_text|safe }}</div>
+      {% endif %}
+
+      {% for erro in campo.errors %}
+        <p class="field-error" role="alert">{{ erro }}</p>
+      {% endfor %}
+    </div>
+  {% endfor %}
+
+  <button class="primary-button" type="submit">{{ botao }}</button>
+</form>

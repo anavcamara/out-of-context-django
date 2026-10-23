@@ -3,11 +3,13 @@
 {% block titulo %}Entrar{% endblock %}
 
 {% block conteudo %}
+  <p class="eyebrow">BEM-VINDO DE VOLTA</p>
   <h1>Entrar</h1>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Entrar</button>
-  </form>
-  <p>Ainda não tem conta? <a href="{% url 'cadastro' %}">Criar conta</a></p>
+  <p class="page-copy">Entre para jogar o desafio do dia e acompanhar seu desempenho.</p>
+
+  {% include "registration/_form.html" with botao="ENTRAR" %}
+
+  <p class="page-alt">
+    Ainda não tem conta? <a href="{% url 'cadastro' %}">Criar conta</a>
+  </p>
 {% endblock %}
