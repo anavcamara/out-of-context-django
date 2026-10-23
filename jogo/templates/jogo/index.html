@@ -12,26 +12,32 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'jogo/style.css' %}">
-  {% if user.is_authenticated %}
-  <a href="{% url 'perfil' %}">{{ user.username }}</a>
-  <a href="{% url 'ranking' %}">Ranking</a>
-  <form method="post" action="{% url 'logout' %}" style="display:inline">
-    {% csrf_token %}
-    <button type="submit">Sair</button>
-  </form>
-{% else %}
-  <a href="{% url 'login' %}">Entrar</a>
-{% endif %}
 </head>
 
 <body>
   <div class="app" id="app">
     <header class="site-header">
-      <button class="brand" id="brand-button" type="button" aria-label="Voltar ao início">
-        OUT OF CONTEXT
-      </button>
-      <button class="header-action" id="header-action" type="button">COMO JOGAR</button>
-    </header>
+  <button class="brand" id="brand-button" type="button" aria-label="Voltar ao início">
+    OUT OF CONTEXT
+  </button>
+
+  <nav aria-label="Principal">
+  <a class="header-action" href="{% url 'ranking' %}">RANKING</a>
+  <button class="header-action" id="header-action" type="button">COMO JOGAR</button>
+
+  <div class="account-nav">
+    {% if user.is_authenticated %}
+      <a class="header-action header-user" href="{% url 'perfil' %}">{{ user.username|upper }}</a>
+      <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button class="header-action" type="submit">SAIR</button>
+      </form>
+    {% else %}
+      <a class="header-action" href="{% url 'login' %}">ENTRAR</a>
+    {% endif %}
+  </div>
+</nav>
+</header>
 
     <main>
       <!-- HOME -->
