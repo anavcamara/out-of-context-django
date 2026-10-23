@@ -536,10 +536,18 @@ function finalizarRodada(acertou) {
     elementos.feedbackMark.textContent = "×";
     elementos.feedbackEyebrow.textContent = "FIM DAS TENTATIVAS";
     elementos.feedbackTitle.textContent = "Essa passou longe.";
-    elementos.feedbackMessage.textContent = "A resposta correta era:";
+    elementos.feedbackMessage.textContent =
+      estado.modo === "context" ? "A obra era:" : "A resposta correta era:";
   }
 
+  // No modo "Fora de contexto" a fala completa já está na tela,
+  // então só a obra é revelada.
+  const soObra = estado.modo === "context";
+
   elementos.feedbackAnswer.textContent = `"${estado.revelacao.resposta}"`;
+  elementos.feedbackAnswer.parentElement.hidden = soObra;
+  elementos.feedbackWork.closest(".reveal-grid")
+    .classList.toggle("reveal-grid--single", soObra);
   elementos.feedbackWork.textContent = estado.revelacao.obra;
 
   elementos.continueButton.textContent = "VER RESULTADO";
@@ -576,6 +584,8 @@ function mostrarResultado() {
   elementos.resultGenre.textContent = r.genero || "Não informado";
   elementos.resultCharacter.textContent = r.personagem || "Não informado";
   elementos.resultAnswer.textContent = `"${r.resposta}"`;
+  elementos.resultAnswer.closest(".result-detail").hidden =
+    estado.modo === "context";
 
   elementos.resultScore.textContent =
     `${MAX_TENTATIVAS - estado.tentativasRestantes} tentativa(s) utilizada(s)`;
