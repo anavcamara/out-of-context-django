@@ -1791,6 +1791,6 @@ a.header-action {
   border-left: 0;
 }
 
-#continue-button {
+.primary-button:not(.primary-button--large) {
   padding: 15px 22px;
 }
