@@ -1355,14 +1355,6 @@ input:focus-visible {
   display: none;
 }
 
-.daily-info {
-  margin-top: 16px;
-  font-size: 14px;
-  opacity: 0.8;
-}
-
-
-
 /* =================================
    PÁGINAS (conta, perfil, ranking)
 ================================= */
@@ -1725,5 +1717,66 @@ a.header-action {
     margin-left: 0;
     padding-left: 0;
     border-left: 0;
+  }
+}
+
+.home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 14px;
+
+  margin-top: 42px;
+}
+
+.home-actions .primary-button--large {
+  margin-top: 0;
+}
+
+.outline-button {
+  min-width: 150px;
+  padding: 15px 20px;
+
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+
+  cursor: pointer;
+
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+
+  transition:
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.outline-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.outline-button:active {
+  transform: translateY(0);
+}
+
+.daily-info {
+  margin-top: 18px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.daily-info strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+@media (max-width: 540px) {
+  .home-actions > * {
+    flex: 1 1 100%;
   }
 }

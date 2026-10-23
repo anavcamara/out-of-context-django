@@ -1,5 +1,4 @@
 {% load static %}
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -13,32 +12,32 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'jogo/style.css' %}">
 </head>
-
+ 
 <body>
   <div class="app" id="app">
     <header class="site-header">
-  <button class="brand" id="brand-button" type="button" aria-label="Voltar ao início">
-    OUT OF CONTEXT
-  </button>
-
-  <nav aria-label="Principal">
-  <a class="header-action" href="{% url 'ranking' %}">RANKING</a>
-  <button class="header-action" id="header-action" type="button">COMO JOGAR</button>
-
-  <div class="account-nav">
-    {% if user.is_authenticated %}
-      <a class="header-action header-user" href="{% url 'perfil' %}">{{ user.username|upper }}</a>
-      <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button class="header-action" type="submit">SAIR</button>
-      </form>
-    {% else %}
-      <a class="header-action" href="{% url 'login' %}">ENTRAR</a>
-    {% endif %}
-  </div>
-</nav>
-</header>
-
+      <button class="brand" id="brand-button" type="button" aria-label="Voltar ao início">
+        OUT OF CONTEXT
+      </button>
+ 
+      <nav aria-label="Principal">
+        <a class="header-action" href="{% url 'ranking' %}">RANKING</a>
+        <button class="header-action" id="header-action" type="button">COMO JOGAR</button>
+ 
+        <div class="account-nav">
+          {% if user.is_authenticated %}
+            <a class="header-action header-user" href="{% url 'perfil' %}">{{ user.username|upper }}</a>
+            <form method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button class="header-action" type="submit">SAIR</button>
+            </form>
+          {% else %}
+            <a class="header-action" href="{% url 'login' %}">ENTRAR</a>
+          {% endif %}
+        </div>
+      </nav>
+    </header>
+ 
     <main>
       <!-- HOME -->
       <section class="screen screen-home is-active" id="home-screen" aria-labelledby="home-title">
@@ -46,28 +45,37 @@
           <p class="eyebrow">UM JOGO DE CENAS</p>
           <h1 id="home-title">Você conhece a cena.<br><span>Mas conhece o contexto?</span></h1>
           <p class="home-copy">Complete falas. Reconheça obras. Teste até onde vai a sua memória.</p>
-          <button class="primary-button primary-button--large" id="play-button" type="button">
-            <span>JOGAR</span>
-            <span aria-hidden="true"></span>
-          </button>
+ 
+          <div class="home-actions">
+            <button class="primary-button primary-button--large" id="play-button" type="button">
+              <span>JOGAR</span>
+              <span aria-hidden="true"></span>
+            </button>
+ 
+            {% if user.is_authenticated %}
+              <button class="outline-button" id="daily-button" type="button">
+                {% if jogou_hoje %}VER RESULTADO DE HOJE{% else %}DESAFIO DO DIA{% endif %}
+              </button>
+            {% endif %}
+          </div>
+ 
           {% if user.is_authenticated %}
-          <button class="secondary-button" id="daily-button" type="button">
-            DESAFIO DO DIA
-          </button>
-          <p class="daily-info">
-            {% if jogou_hoje %}Você já jogou hoje. {% endif %}Sequência: {{ sequencia_diaria }} dia(s)
-          </p>
-        {% else %}
-          <p class="daily-info">
-            <a href="{% url 'login' %}?next={% url 'home' %}">Entre</a> para jogar o desafio diário.
-          </p>
-        {% endif %}
+            <p class="daily-info">
+              {% if jogou_hoje %}Você já jogou hoje · {% endif %}
+              Sequência: <strong>{{ sequencia_diaria }}</strong> dia{{ sequencia_diaria|pluralize }}
+            </p>
+          {% else %}
+            <p class="daily-info">
+              <a href="{% url 'login' %}?next={% url 'home' %}">Entre</a> para jogar o desafio diário.
+            </p>
+          {% endif %}
+ 
           <p class="load-error" id="load-error" hidden>
-            Não foi possível carregar as cenas do jogo. Recarregue a página para tentar novamente.
+            Não foi possível iniciar a partida. Recarregue a página para tentar novamente.
           </p>
         </div>
       </section>
-
+ 
       <!-- GAME -->
       <section class="screen screen-game" id="game-screen" hidden aria-labelledby="game-title">
         <div class="game-topline">
@@ -77,19 +85,19 @@
           </button>
           <p class="game-mode-label" id="game-mode-label"></p>
         </div>
-
+ 
         <div class="game-content" id="game-content">
           <div class="game-heading">
             <p class="eyebrow" id="game-eyebrow"></p>
             <h1 id="game-title"></h1>
             <p class="game-copy" id="game-copy"></p>
           </div>
-
+ 
           <article class="scene-prompt" aria-label="Cena">
             <p class="scene-label">CENA</p>
             <p class="scene-text" id="dialogo"></p>
           </article>
-
+ 
           <!-- COMPLETE A CENA -->
           <form class="answer-area" id="complete-form" novalidate>
             <label for="answer-input" id="answer-label">CONTINUE A FALA</label>
@@ -109,7 +117,7 @@
             </div>
             <p class="answer-feedback" id="answer-feedback" aria-live="polite"></p>
           </form>
-
+ 
           <!-- FORA DE CONTEXTO -->
           <form class="answer-area" id="context-form" novalidate hidden>
             <label for="context-input">QUAL É A OBRA?</label>
@@ -132,7 +140,7 @@
             </div>
             <p class="answer-feedback" id="context-feedback" aria-live="polite"></p>
           </form>
-
+ 
           <div class="game-tools">
             <div class="attempts" aria-label="Tentativas restantes">
               <span class="tools-label">TENTATIVAS</span>
@@ -147,9 +155,9 @@
               <span>PEDIR DICA</span>
             </button>
           </div>
-
+ 
           <div class="hints" id="hints" aria-live="polite"></div>
-
+ 
           <div class="round-feedback" id="round-feedback" hidden>
             <div class="feedback-status">
               <span class="feedback-mark" id="feedback-mark" aria-hidden="true"></span>
@@ -175,7 +183,7 @@
       </section>
     </main>
   </div>
-
+ 
   <!-- MODALS -->
   <div class="modal-layer" id="mode-modal" hidden>
     <div class="modal-backdrop" data-close-modal="mode-modal"></div>
@@ -183,7 +191,7 @@
       <button class="modal-close" type="button" aria-label="Fechar">×</button>
       <p class="eyebrow">ESCOLHA SEU DESAFIO</p>
       <h2 id="mode-modal-title">Como você quer jogar?</h2>
-
+ 
       <div class="mode-list">
         <button class="mode-option" data-mode="complete" type="button">
           <span>
@@ -192,7 +200,7 @@
           </span>
           <span class="mode-arrow" aria-hidden="true"></span>
         </button>
-
+ 
         <button class="mode-option" data-mode="context" type="button">
           <span>
             <strong>FORA DE CONTEXTO</strong>
@@ -203,14 +211,14 @@
       </div>
     </section>
   </div>
-
+ 
   <div class="modal-layer" id="how-modal" hidden>
     <div class="modal-backdrop" data-close-modal="how-modal"></div>
     <section class="modal modal--how" role="dialog" aria-modal="true" aria-labelledby="how-modal-title">
       <button class="modal-close" type="button" aria-label="Fechar">×</button>
       <p class="eyebrow">COMO JOGAR</p>
       <h2 id="how-modal-title">Uma cena. Três tentativas.</h2>
-
+ 
       <div class="how-sections">
         <div>
           <span>01</span>
@@ -231,7 +239,7 @@
       </div>
     </section>
   </div>
-
+ 
   <div class="modal-layer" id="result-modal" hidden>
     <div class="modal-backdrop"></div>
     <section class="modal modal--result" role="dialog" aria-modal="true" aria-labelledby="result-title">
@@ -239,32 +247,32 @@
       <h2 id="result-title"></h2>
       <p class="result-copy" id="result-copy"></p>
       <div class="result-details">
-
+ 
         <div class="result-detail">
           <span>OBRA</span>
           <strong id="result-work"></strong>
         </div>
-
+ 
         <div class="result-detail">
           <span>ANO</span>
           <strong id="result-year"></strong>
         </div>
-
+ 
         <div class="result-detail">
           <span>GÊNERO</span>
           <strong id="result-genre"></strong>
         </div>
-
+ 
         <div class="result-detail">
           <span>PERSONAGEM</span>
           <strong id="result-character"></strong>
         </div>
-
+ 
         <div class="result-detail">
           <span>RESPOSTA</span>
           <strong id="result-answer"></strong>
         </div>
-
+ 
       </div>
       <div class="result-score" id="result-score"></div>
       <div class="result-actions">
@@ -273,7 +281,7 @@
       </div>
     </section>
   </div>
-
+ 
   <script src="{% static 'jogo/script.js' %}"></script>
 </body>
 </html>
