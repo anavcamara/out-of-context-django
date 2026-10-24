@@ -24,22 +24,6 @@ def desafio_de_hoje():
     return desafio
 
 
-def sequencia_diaria(usuario, hoje):
-    vitorias = set(
-        Partida.objects.filter(
-            usuario=usuario, desafio__isnull=False, acertou=True
-        ).values_list("desafio__data", flat=True)
-    )
-
-    dia = hoje if hoje in vitorias else hoje - timedelta(days=1)
-    sequencia = 0
-
-    while dia in vitorias:
-        sequencia += 1
-        dia -= timedelta(days=1)
-
-    return sequencia
-
 def _contar_sequencia(datas, hoje):
     dia = hoje if hoje in datas else hoje - timedelta(days=1)
     sequencia = 0

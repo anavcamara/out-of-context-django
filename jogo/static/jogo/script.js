@@ -114,13 +114,43 @@ async function api(url, corpo = {}) {
 // MODAIS
 // ==============================
 
+let focoAnterior = null;
+
 function abrirModal(modal) {
+  focoAnterior = document.activeElement;
   modal.hidden = false;
+
+  // Leva o foco do teclado para dentro do modal.
+  const alvo = modal.querySelector("button:not([hidden]), a[href], input");
+
+  if (alvo) {
+    alvo.focus();
+  }
 }
 
 function fecharModal(modal) {
+  if (modal.hidden) {
+    return;
+  }
+
   modal.hidden = true;
+
+  // Devolve o foco a quem abriu o modal.
+  if (focoAnterior && document.contains(focoAnterior)) {
+    focoAnterior.focus();
+  }
+
+  focoAnterior = null;
 }
+
+// ESC fecha os modais de escolha de modo e de instruções.
+// O de resultado não fecha assim, para a pessoa ver o fim da rodada.
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    fecharModal(elementos.modeModal);
+    fecharModal(elementos.howModal);
+  }
+});
 
 // ==============================
 // HOME
