@@ -1,16 +1,46 @@
+import os
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-w@2=)2t)+o)yt_i2n)e!8wq2&##q3@c3ym8+lm3o*&%$vx-!41'
+# Em produção, defina as variáveis de ambiente abaixo (veja o README).
+# Sem elas, o projeto roda em modo de desenvolvimento local.
+#   DJANGO_DEBUG=0                 desliga o modo debug
+#   DJANGO_SECRET_KEY=...          chave secreta (obrigatória com DEBUG desligado)
+#   DJANGO_ALLOWED_HOSTS=a.com,b   domínios permitidos, separados por vírgula
+#   DJANGO_CSRF_TRUSTED_ORIGINS=https://a.com   origens confiáveis para formulários
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 
-ALLOWED_HOSTS = []
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
+
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured(
+            "Defina DJANGO_SECRET_KEY quando DJANGO_DEBUG=0."
+        )
+    # Chave só para desenvolvimento local; nunca use em produção.
+    SECRET_KEY = "django-insecure-chave-apenas-para-desenvolvimento-local"
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    origem.strip()
+    for origem in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origem.strip()
+]
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 
 # Application definition
@@ -22,7 +52,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'jogo'
+    'jogo',
 ]
 
 MIDDLEWARE = [
@@ -101,6 +131,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 # Email
