@@ -1794,3 +1794,13 @@ a.header-action {
 .primary-button:not(.primary-button--large) {
   padding: 15px 22px;
 }
+
+.daily-info a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.daily-info a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
