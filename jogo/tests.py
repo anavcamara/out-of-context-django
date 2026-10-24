@@ -1,13 +1,19 @@
 import json
+import os
+import tempfile
 from datetime import timedelta
+from io import StringIO
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.test import Client, TestCase
 from django.utils import timezone
 
 from .diario import desafio_de_hoje, ranking_sequencias, sequencia_diaria
 from .models import Cena, DesafioDiario, Obra, Partida
-from .services import levenshtein, normalizar, similaridade
+from .services import levenshtein, normalizar, similaridade, titulo_correto
 
 
 class ServicesTests(TestCase):
@@ -30,6 +36,23 @@ class ServicesTests(TestCase):
 
     def test_resposta_incompleta_nao_acerta(self):
         self.assertLess(similaridade("um", "um problema"), 0.85)
+
+    def test_titulo_aceita_palavras_inteiras_do_titulo(self):
+        titulo = "Apollo 13: Do Desastre ao Triunfo"
+        self.assertTrue(titulo_correto("Apollo 13", titulo))
+        self.assertTrue(titulo_correto("apollo", titulo))
+
+    def test_titulo_rejeita_fragmentos_soltos(self):
+        titulo = "Apollo 13: Do Desastre ao Triunfo"
+        for chute in ("ast", "tre", "lo 1", "do", "xyz", ""):
+            self.assertFalse(titulo_correto(chute, titulo), chute)
+
+    def test_titulo_curto_nao_aceita_palavra_que_apenas_o_contem(self):
+        self.assertTrue(titulo_correto("Up", "Up"))
+        self.assertFalse(titulo_correto("super", "Up"))
+
+    def test_titulo_com_erro_de_digitacao(self):
+        self.assertTrue(titulo_correto("titanik", "Titanic"))
 
 class PartidaApiTests(TestCase):
     def setUp(self):
@@ -115,6 +138,89 @@ class PartidaApiTests(TestCase):
         pid = self.nova_partida()
         self.assertIsNone(Partida.objects.get(id=pid).usuario)
         
+    def test_json_invalido_devolve_400(self):
+        resposta = self.client.post(
+            "/api/partida/nova/", "isso nao e json", content_type="application/json"
+        )
+        self.assertEqual(resposta.status_code, 400)
+
+    def test_corpo_que_nao_e_objeto_devolve_400(self):
+        resposta = self.client.post(
+            "/api/partida/nova/", "[1, 2]", content_type="application/json"
+        )
+        self.assertEqual(resposta.status_code, 400)
+
+    def test_resposta_que_nao_e_texto_devolve_400(self):
+        pid = self.nova_partida()
+        resposta = self.post(f"/api/partida/{pid}/tentativa/", {"resposta": 123})
+        self.assertEqual(resposta.status_code, 400)
+
+    def test_resposta_longa_demais_e_recusada_sem_gastar_tentativa(self):
+        pid = self.nova_partida()
+        resposta = self.post(
+            f"/api/partida/{pid}/tentativa/", {"resposta": "a" * 301}
+        )
+        self.assertEqual(resposta.status_code, 400)
+        self.assertEqual(Partida.objects.get(id=pid).tentativas_usadas, 0)
+
+    def test_partida_anonima_nao_e_acessivel_por_outra_sessao(self):
+        pid = self.nova_partida()
+        outro = Client()
+
+        for rota in ("tentativa", "dica"):
+            resposta = outro.post(
+                f"/api/partida/{pid}/{rota}/",
+                json.dumps({"resposta": "x"}),
+                content_type="application/json",
+            )
+            self.assertEqual(resposta.status_code, 403, rota)
+
+        partida = Partida.objects.get(id=pid)
+        self.assertEqual(partida.tentativas_usadas, 0)
+        self.assertEqual(partida.dicas_usadas, 0)
+
+    def test_dica_exige_ser_o_dono_da_partida(self):
+        User.objects.create_user("ana", password="senha-forte-123")
+        User.objects.create_user("bia", password="senha-forte-123")
+
+        self.client.login(username="ana", password="senha-forte-123")
+        pid = self.nova_partida()
+        self.client.logout()
+
+        self.client.login(username="bia", password="senha-forte-123")
+        resposta = self.post(f"/api/partida/{pid}/dica/", {})
+        self.assertEqual(resposta.status_code, 403)
+        self.assertEqual(Partida.objects.get(id=pid).dicas_usadas, 0)
+
+    def test_tentativa_simultanea_nao_gasta_duas_vezes(self):
+        pid = self.nova_partida()
+
+        def outro_pedido_chega_primeiro(*args, **kwargs):
+            Partida.objects.filter(id=pid).update(tentativas_usadas=1)
+            return False
+
+        with patch(
+            "jogo.views.resposta_correta", side_effect=outro_pedido_chega_primeiro
+        ):
+            resposta = self.post(
+                f"/api/partida/{pid}/tentativa/", {"resposta": "banana"}
+            )
+
+        self.assertEqual(resposta.status_code, 409)
+        self.assertEqual(Partida.objects.get(id=pid).tentativas_usadas, 1)
+
+    def test_modo_contexto_aceita_titulo_e_recusa_fragmento(self):
+        pid = self.nova_partida("context")
+        url = f"/api/partida/{pid}/tentativa/"
+
+        errada = self.post(url, {"resposta": "pol"}).json()
+        self.assertFalse(errada["acertou"])
+
+        certa = self.post(url, {"resposta": "apollo 13"}).json()
+        self.assertTrue(certa["acertou"])
+        self.assertTrue(certa["terminou"])
+
+
 class ContasTests(TestCase):
     def test_cadastro_cria_usuario_e_faz_login(self):
         resposta = self.client.post("/contas/cadastro/", {
@@ -124,6 +230,20 @@ class ContasTests(TestCase):
         })
         self.assertEqual(resposta.status_code, 302)
         self.assertTrue(User.objects.filter(username="bia").exists())
+
+    def test_cadastro_redireciona_quem_ja_esta_logado(self):
+        User.objects.create_user("ana", password="senha-forte-123")
+        self.client.login(username="ana", password="senha-forte-123")
+        self.assertEqual(self.client.get("/contas/cadastro/").status_code, 302)
+
+    def test_cadastro_com_senhas_diferentes_mostra_erro(self):
+        resposta = self.client.post("/contas/cadastro/", {
+            "username": "carla",
+            "password1": "senha-forte-123",
+            "password2": "outra-senha-456",
+        })
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(User.objects.filter(username="carla").exists())
         
 class PerfilTests(TestCase):
     def setUp(self):
@@ -331,3 +451,50 @@ class RankingTests(TestCase):
         self.assertEqual(
             ranking_sequencias(hoje), [("ana", 2), ("bia", 1)]
         )
+
+
+class ImportarCenasTests(TestCase):
+    CENA = {
+        "obra": "Titanic", "tipo": "filme", "ano": 1997, "genero": "Drama",
+        "personagem": "Jack", "contexto": "No navio.",
+        "dialogo": "Eu sou o rei", "resposta": "do mundo!",
+    }
+
+    def escrever(self, pasta, conteudo):
+        caminho = os.path.join(pasta, "cenas.json")
+        with open(caminho, "w", encoding="utf-8") as arquivo:
+            json.dump(conteudo, arquivo)
+        return caminho
+
+    def test_importa_sem_duplicar(self):
+        with tempfile.TemporaryDirectory() as pasta:
+            caminho = self.escrever(pasta, [self.CENA])
+            call_command("importar_cenas", caminho, stdout=StringIO())
+            call_command("importar_cenas", caminho, stdout=StringIO())
+
+        self.assertEqual(Obra.objects.count(), 1)
+        self.assertEqual(Cena.objects.count(), 1)
+
+    def test_arquivo_inexistente(self):
+        with self.assertRaises(CommandError):
+            call_command("importar_cenas", "nao-existe.json", stdout=StringIO())
+
+    def test_campo_faltando_nao_grava_nada(self):
+        incompleta = {k: v for k, v in self.CENA.items() if k != "resposta"}
+
+        with tempfile.TemporaryDirectory() as pasta:
+            caminho = self.escrever(pasta, [self.CENA, incompleta])
+            with self.assertRaises(CommandError):
+                call_command("importar_cenas", caminho, stdout=StringIO())
+
+        self.assertEqual(Cena.objects.count(), 0)
+
+
+class AdminTests(TestCase):
+    def test_listas_do_admin_carregam(self):
+        User.objects.create_superuser("admin", password="senha-forte-123")
+        self.client.login(username="admin", password="senha-forte-123")
+
+        for modelo in ("obra", "cena", "partida", "desafiodiario"):
+            resposta = self.client.get(f"/admin/jogo/{modelo}/")
+            self.assertEqual(resposta.status_code, 200, modelo)

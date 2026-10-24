@@ -1,49 +1,73 @@
-from django.shortcuts import render
-from django.utils import timezone
 import json
 
+from django.contrib.auth import get_user_model, login
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
+from django.core.exceptions import PermissionDenied
+from django.db.models import Avg, Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import Cena, Obra, Partida
-from .services import MAX_TENTATIVAS, normalizar, resposta_correta
-
-from django.contrib.auth import get_user_model, login
-from django.contrib.auth.forms import UserCreationForm
-
-from django.contrib.auth.decorators import login_required
-from django.db.models import Avg, Count, Q
-
-from django.core.exceptions import PermissionDenied
 from .diario import desafio_de_hoje, ranking_sequencias, sequencia_diaria
+from .models import Cena, Obra, Partida
+from .services import (
+    MAX_RESPOSTA,
+    MAX_TENTATIVAS,
+    normalizar,
+    resposta_correta,
+)
 
-@require_POST
-def nova_partida(request):
-    dados = json.loads(request.body or "{}")
-    modo = dados.get("modo")
+# Quantas partidas anônimas uma mesma sessão consegue continuar usando.
+MAX_PARTIDAS_NA_SESSAO = 50
 
-    if modo not in ("complete", "context"):
-        return JsonResponse({"erro": "Modo inválido."}, status=400)
 
-    cena = Cena.objects.order_by("?").select_related("obra").first()
-    if cena is None:
-        return JsonResponse({"erro": "Nenhuma cena cadastrada."}, status=503)
+# ==============================
+# FUNÇÕES DE APOIO
+# ==============================
 
-    usuario = request.user if request.user.is_authenticated else None
-    partida = Partida.objects.create(cena=cena, modo=modo, usuario=usuario)
+class RequisicaoInvalida(Exception):
+    """Corpo da requisição ausente, malformado ou com tipos inesperados."""
 
-    if modo == "complete":
-        dialogo = cena.dialogo
-    else:
-        dialogo = f"{cena.dialogo} {cena.resposta}"
 
-    return JsonResponse({
-        "partida_id": partida.id,
-        "dialogo": dialogo,
-        "tentativas_restantes": MAX_TENTATIVAS,
-    })
-    
+def _erro(mensagem, status=400):
+    return JsonResponse({"erro": mensagem}, status=status)
+
+
+def _ler_json(request):
+    try:
+        dados = json.loads(request.body or b"{}")
+    except (ValueError, UnicodeDecodeError):
+        raise RequisicaoInvalida("Requisição inválida.")
+
+    if not isinstance(dados, dict):
+        raise RequisicaoInvalida("Requisição inválida.")
+
+    return dados
+
+
+def _registrar_partida_anonima(request, partida_id):
+    # Partidas sem dono só podem ser usadas pela sessão que as criou.
+    ids = request.session.get("partidas_anonimas", [])
+    ids.append(partida_id)
+    request.session["partidas_anonimas"] = ids[-MAX_PARTIDAS_NA_SESSAO:]
+
+
+def _buscar_partida(request, partida_id):
+    partida = get_object_or_404(
+        Partida.objects.select_related("cena__obra"), id=partida_id
+    )
+
+    if partida.usuario_id is not None:
+        if partida.usuario_id != request.user.id:
+            raise PermissionDenied
+    elif partida.id not in request.session.get("partidas_anonimas", []):
+        raise PermissionDenied
+
+    return partida
+
+
 def _revelacao(cena):
     return {
         "resposta": cena.resposta,
@@ -53,6 +77,7 @@ def _revelacao(cena):
         "personagem": cena.personagem,
     }
 
+
 def _dicas(cena):
     return [
         ("ANO", cena.obra.ano),
@@ -60,38 +85,10 @@ def _dicas(cena):
         ("PERSONAGEM", cena.personagem),
     ]
 
-@require_POST
-def tentativa(request, partida_id):
-    partida = _buscar_partida(request, partida_id)
 
-    if partida.terminou:
-        return JsonResponse({"erro": "Esta partida já terminou."}, status=400)
-
-    dados = json.loads(request.body or "{}")
-    texto = dados.get("resposta", "").strip()
-
-    if not texto:
-        return JsonResponse({"erro": "Digite uma resposta."}, status=400)
-
-    partida.tentativas_usadas += 1
-    acertou = resposta_correta(partida, texto)
-
-    if acertou or partida.tentativas_usadas >= MAX_TENTATIVAS:
-        partida.terminou = True
-        partida.acertou = acertou
-
-    partida.save()
-
-    resposta = {
-        "acertou": acertou,
-        "terminou": partida.terminou,
-        "tentativas_restantes": MAX_TENTATIVAS - partida.tentativas_usadas,
-    }
-
-    if partida.terminou:
-        resposta["revelacao"] = _revelacao(partida.cena)
-
-    return JsonResponse(resposta)
+# ==============================
+# PÁGINAS
+# ==============================
 
 def home(request):
     contexto = {}
@@ -106,45 +103,10 @@ def home(request):
     return render(request, "jogo/index.html", contexto)
 
 
-@require_POST
-def dica(request, partida_id):
-    partida = get_object_or_404(
-        Partida.objects.select_related("cena__obra"), id=partida_id
-    )
-
-    if partida.terminou:
-        return JsonResponse({"erro": "Esta partida já terminou."}, status=400)
-
-    dicas = _dicas(partida.cena)
-
-    if partida.dicas_usadas >= len(dicas):
-        return JsonResponse({"erro": "Todas as dicas já foram reveladas."}, status=400)
-
-    titulo, valor = dicas[partida.dicas_usadas]
-    partida.dicas_usadas += 1
-    partida.save()
-
-    return JsonResponse({
-        "numero": partida.dicas_usadas,
-        "titulo": titulo,
-        "valor": str(valor),
-        "restantes": len(dicas) - partida.dicas_usadas,
-    })
-
-
-def obras(request):
-    busca = normalizar(request.GET.get("q", ""))
-
-    if len(busca) < 2:
-        return JsonResponse({"obras": []})
-
-    titulos = Obra.objects.values_list("titulo", flat=True)
-    encontrados = [t for t in titulos if busca in normalizar(t)][:5]
-
-    return JsonResponse({"obras": encontrados})
-
-
 def cadastro(request):
+    if request.user.is_authenticated:
+        return redirect("home")
+
     if request.method == "POST":
         form = UserCreationForm(request.POST)
         if form.is_valid():
@@ -155,6 +117,7 @@ def cadastro(request):
         form = UserCreationForm()
 
     return render(request, "registration/cadastro.html", {"form": form})
+
 
 @login_required
 def perfil(request):
@@ -189,7 +152,9 @@ def perfil(request):
         .order_by("modo")
     ]
 
-    recentes = finalizadas.select_related("cena__obra").order_by("-criada_em")[:10]
+    recentes = finalizadas.select_related("cena__obra").order_by(
+        "-criada_em", "-id"
+    )[:10]
 
     return render(request, "jogo/perfil.html", {
         "resumo": resumo,
@@ -197,28 +162,164 @@ def perfil(request):
         "por_modo": por_modo,
         "recentes": recentes,
     })
-    
-def _buscar_partida(request, partida_id):
-    partida = get_object_or_404(
-        Partida.objects.select_related("cena__obra"), id=partida_id
+
+
+def ranking(request):
+    Usuario = get_user_model()
+
+    geral = (
+        Usuario.objects.annotate(
+            acertos=Count("partidas", filter=Q(partidas__acertou=True)),
+            total=Count("partidas", filter=Q(partidas__terminou=True)),
+        )
+        .filter(acertos__gt=0)
+        .order_by("-acertos", "total", "username")[:10]
     )
 
-    if partida.usuario_id is not None and partida.usuario_id != request.user.id:
-        raise PermissionDenied
+    return render(request, "jogo/ranking.html", {
+        "geral": geral,
+        "sequencias": ranking_sequencias(timezone.localdate()),
+    })
 
-    return partida
+
+# ==============================
+# API DO JOGO
+# ==============================
+
+@require_POST
+def nova_partida(request):
+    try:
+        dados = _ler_json(request)
+    except RequisicaoInvalida as erro:
+        return _erro(str(erro))
+
+    modo = dados.get("modo")
+
+    if modo not in ("complete", "context"):
+        return _erro("Modo inválido.")
+
+    cena = Cena.objects.order_by("?").select_related("obra").first()
+    if cena is None:
+        return _erro("Nenhuma cena cadastrada.", status=503)
+
+    usuario = request.user if request.user.is_authenticated else None
+    partida = Partida.objects.create(cena=cena, modo=modo, usuario=usuario)
+
+    if usuario is None:
+        _registrar_partida_anonima(request, partida.id)
+
+    if modo == "complete":
+        dialogo = cena.dialogo
+    else:
+        dialogo = f"{cena.dialogo} {cena.resposta}"
+
+    return JsonResponse({
+        "partida_id": partida.id,
+        "dialogo": dialogo,
+        "tentativas_restantes": MAX_TENTATIVAS,
+    })
+
+
+@require_POST
+def tentativa(request, partida_id):
+    partida = _buscar_partida(request, partida_id)
+
+    if partida.terminou:
+        return _erro("Esta partida já terminou.")
+
+    try:
+        dados = _ler_json(request)
+    except RequisicaoInvalida as erro:
+        return _erro(str(erro))
+
+    texto = dados.get("resposta")
+
+    if not isinstance(texto, str) or not texto.strip():
+        return _erro("Digite uma resposta.")
+
+    texto = texto.strip()
+
+    if len(texto) > MAX_RESPOSTA:
+        return _erro(f"A resposta pode ter no máximo {MAX_RESPOSTA} caracteres.")
+
+    usadas = partida.tentativas_usadas + 1
+    acertou = resposta_correta(partida, texto)
+    terminou = acertou or usadas >= MAX_TENTATIVAS
+
+    # Grava só se ninguém mexeu na partida desde a leitura. Assim, pedidos
+    # simultâneos não conseguem testar várias respostas gastando uma tentativa.
+    gravada = Partida.objects.filter(
+        pk=partida.pk, terminou=False, tentativas_usadas=partida.tentativas_usadas
+    ).update(tentativas_usadas=usadas, terminou=terminou, acertou=acertou)
+
+    if not gravada:
+        return _erro(
+            "Sua tentativa anterior ainda está sendo processada. Tente de novo.",
+            status=409,
+        )
+
+    resposta = {
+        "acertou": acertou,
+        "terminou": terminou,
+        "tentativas_restantes": MAX_TENTATIVAS - usadas,
+    }
+
+    if terminou:
+        resposta["revelacao"] = _revelacao(partida.cena)
+
+    return JsonResponse(resposta)
+
+
+@require_POST
+def dica(request, partida_id):
+    partida = _buscar_partida(request, partida_id)
+
+    if partida.terminou:
+        return _erro("Esta partida já terminou.")
+
+    dicas = _dicas(partida.cena)
+
+    if partida.dicas_usadas >= len(dicas):
+        return _erro("Todas as dicas já foram reveladas.")
+
+    gravada = Partida.objects.filter(
+        pk=partida.pk, terminou=False, dicas_usadas=partida.dicas_usadas
+    ).update(dicas_usadas=partida.dicas_usadas + 1)
+
+    if not gravada:
+        return _erro("Pedido de dica em andamento. Tente de novo.", status=409)
+
+    numero = partida.dicas_usadas + 1
+    titulo, valor = dicas[partida.dicas_usadas]
+
+    return JsonResponse({
+        "numero": numero,
+        "titulo": titulo,
+        "valor": str(valor),
+        "restantes": len(dicas) - numero,
+    })
+
+
+def obras(request):
+    busca = normalizar(request.GET.get("q", ""))
+
+    if len(busca) < 2:
+        return JsonResponse({"obras": []})
+
+    titulos = Obra.objects.values_list("titulo", flat=True)
+    encontrados = [t for t in titulos if busca in normalizar(t)][:5]
+
+    return JsonResponse({"obras": encontrados})
 
 
 @require_POST
 def desafio_hoje(request):
     if not request.user.is_authenticated:
-        return JsonResponse(
-            {"erro": "Entre na sua conta para jogar o desafio diário."}, status=401
-        )
+        return _erro("Entre na sua conta para jogar o desafio diário.", status=401)
 
     desafio = desafio_de_hoje()
     if desafio is None:
-        return JsonResponse({"erro": "Nenhuma cena cadastrada."}, status=503)
+        return _erro("Nenhuma cena cadastrada.", status=503)
 
     partida, _ = Partida.objects.get_or_create(
         usuario=request.user,
@@ -249,21 +350,3 @@ def desafio_hoje(request):
         "tentativas_restantes": MAX_TENTATIVAS - partida.tentativas_usadas,
         "dicas": dicas,
     })
-    
-def ranking(request):
-    Usuario = get_user_model()
-
-    geral = (
-        Usuario.objects.annotate(
-            acertos=Count("partidas", filter=Q(partidas__acertou=True)),
-            total=Count("partidas", filter=Q(partidas__terminou=True)),
-        )
-        .filter(acertos__gt=0)
-        .order_by("-acertos", "total", "username")[:10]
-    )
-
-    return render(request, "jogo/ranking.html", {
-        "geral": geral,
-        "sequencias": ranking_sequencias(timezone.localdate()),
-    })
-
