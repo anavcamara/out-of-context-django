@@ -1,1 +1,5 @@
 Django>=6.1,<6.2
+gunicorn
+whitenoise
+dj-database-url
+psycopg[binary]; sys_platform == "linux"
